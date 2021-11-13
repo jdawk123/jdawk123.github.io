@@ -6,3 +6,7 @@ navbar:
       href: index.html
     - text: "Beer Study/Case Study 1"
       href: Case-Study-01.html
+    - text: "Case Study 2"      
+      href: 
+  -   text: "Statistical Project"
+      href: 

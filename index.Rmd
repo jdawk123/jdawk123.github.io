@@ -1,11 +1,11 @@
 ---
-title: "Things I've Done!"
+title: "Welcome All"
 author: "Jeremy Dawkins"
 date: "11/12/2021"
 output: html_document
 ---
 
-# This is a webpage displaying various projects and cool things I have done while studying at Southern Methodist University
+This is a webpage displaying various projects and cool things I have done while studying at Southern Methodist University
 
 ## {.tabset}
 
@@ -15,7 +15,7 @@ output: html_document
 
 
 
-Name: Jeremy Dawkins
+
 
 Place: Located in Houston, Texas. 
 
@@ -31,7 +31,7 @@ Education:Undergraduate Studies: Texas A&M University, Graduate Studies: Souther
 
 
 
-The other tabs represent work/analyses that I have completed during my time at SMU. Please check them out! Thank You!
+##The other tabs represent work/analyses that I have completed during my time at SMU. Please check them out! Thank You!
 
 
 
