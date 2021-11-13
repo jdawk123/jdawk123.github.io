@@ -1,0 +1,228 @@
+---
+title: "Case Study 01 EDA Beers_Breweries"
+author: "Jeremy Dawkins"
+date: "10/21/2021"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+#Hello, The purpose of this code is to explain what possible ways as a company for Budweiser can improve business in certain regional regions and/or possible provide new goods and services where the market is has untapped potential. 
+
+#I am hoping my code below can answer some of your questions on how this data allowed us to make an informed decision on what's the next big source of revenue.
+
+
+
+#Load Library that will be in use for this project
+```{r message=FALSE, warning=FALSE}
+library(dplyr)      #For string functions / heavy use of this library
+library(ggplot2)    #For plotting
+library(kableExtra) #For table formatting / library to make the document more presentable
+library(knitr)      #For presenting in HTML
+library(stringr)    #For string trim function
+library(ggthemes)   #For themes in ggplot
+library(caret)      #For use of KNN classification
+library(plotly)     #For use of an interactive plot
+library(gridExtra)  #For use of using ggplot2 graphs with grids
+```
+
+#We want to read in our data set from the beers.csv and the breweries.csv
+```{r read in data set}
+Beerdataframe = read.csv(file.choose(),header = TRUE, sep = ",",stringsAsFactors = TRUE,encoding = "UTF-8")
+Brewerydataframe = read.csv(file.choose(),header = TRUE,sep = ",",stringsAsFactors = FALSE)
+
+#Examine the first 5 entry of each data set. Examining the names of the columns and seeing what the structure of the data frames are.
+head(Beerdataframe,5)
+head(Brewerydataframe,5)
+
+str(Beerdataframe)
+str(Brewerydataframe)
+
+summary(Beerdataframe)
+summary(Brewerydataframe)
+```
+
+#Renaming the column names for each data set to make them more readable 
+```{r beers, breweries}
+names(Beerdataframe) = c("Beer_Name","Beer_ID","Alcohol_by_Volume","Bitterness_Units","Brewery_ID","Beer_Style","Ounces")
+names(Brewerydataframe) = c("Brewery_ID","Brewery_Name","City","State")
+
+colnames(Brewerydataframe) #displays new column names after change
+colnames(Beerdataframe) #displays new column names after change
+```
+
+#Question 1: How many Breweries are present in each state?
+
+#We created a bar chart to display how many breweries are in each state as well as a list and table
+#The states with the highest brewery count is: Colorado, California, Michigan, Oregon and Texas.. This would be a great market to start if any new releases of beer Budweiser wants to create.
+```{r breweries per state}
+BreweryperState = table(Brewerydataframe$State)            #Displays a table of a count of each brewery in every state of the US
+BreweryperState
+
+CountBreweryperState = Brewerydataframe %>% group_by(State) %>% summarize(n=n()) #Shows a count of each brewery in every state as well
+CountBreweryperState
+
+#displays a scatterplot of the each brewery in all states
+PlotofBreweryperState = CountBreweryperState %>% ggplot(aes(x=State, y= n, color = State)) + geom_point() + labs(title = "Breweries in each State", subtitle = "# of Breweries", x = "States in the US", y = "Number of Breweries")
+PlotofBreweryperState
+```
+
+
+#Question 2: Merge the Beer and Breweries data set. Print the first 6 observations and the last 6 observations to check the merged file.
+
+#We were able to merge both data sets together and printing the first 6 obserations and the last 6 observations which is shown. 
+```{r merged file}
+#First we merge the data frame for beer and breweries data sets into 1 by their common column name in this case we used Brewery_ID
+AllBeerDataFrame = merge.data.frame(Beerdataframe,Brewerydataframe, by = "Brewery_ID")
+
+#Print the first 6 observations to see the new data frame
+head(AllBeerDataFrame,6)
+
+#Print the last 6 observations to see the new data frame
+tail(AllBeerDataFrame,6)
+
+```
+
+#Question 3: Address the Missing values in each column.
+#We decided to address the missing value and NA's in data frame by taking the median of the available ABV and IBU and used that number to replace the missing data.
+```{r missing data}
+str(AllBeerDataFrame) # to show which column has missing values and NA's 
+
+#Correct for all the missing values in our two columns of Alcohol_By_Volume and Bitterness_Units that has missing values and created new columns called ABV and IBU that has the median value that replaces the missing values
+AllBeerDataFrame = AllBeerDataFrame %>% group_by(Beer_Style) %>% mutate(IBU = ifelse(is.na(Bitterness_Units),median(Bitterness_Units, na.rm = TRUE), Bitterness_Units), ABV = ifelse(is.na(Alcohol_by_Volume), median(Alcohol_by_Volume,na.rm = TRUE),Alcohol_by_Volume))
+
+```
+
+#Question 4: Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare.
+
+#We computed the median ABV and IBU for each state to give an idea on what people to tend to drink in their respective states. Where does Budweiser traditionally fall on this scale?
+#However, when looking at the median IBU values, there is much more spread between states. What this would suggest is that different states have different views on how bitter their beer should be (IBU level). Traditionally Budweiser falls right in the middle of the ABV range at 5%, but much lower than the median IBU for all states in the dataset (12 IBU)! Therefore, the evidence suggests that craft beer consumers might prefer Budweiser if it were more bitter (greater IBU). 
+```{r median IBU and ABV}
+#Find the median for ABV and IBU for each state
+Median_ABV_IBU = AllBeerDataFrame %>% group_by(State) %>% summarize(Median_ABV = median(ABV), Median_IBU = median(IBU, na.rm = TRUE))
+
+#Plot of the median ABV per state
+PlotMedian_ABV = Median_ABV_IBU %>% ggplot() + geom_bar(aes(x = reorder(State, -Median_ABV), y = Median_ABV, fill =  Median_ABV), stat = "identity") + ggtitle("Median ABV per State") + ylab("Median ABV") + xlab("State")
+PlotMedian_ABV
+
+#Plot of the median IBU per State
+PlotMedian_IBU = Median_ABV_IBU %>% ggplot() + geom_bar(aes(x = reorder(State,-Median_IBU), y= Median_IBU, fill = Median_IBU), stat = "identity") + ggtitle("Median IBU per State") + ylab("Median IBU") + xlab("State")
+PlotMedian_IBU
+```
+
+
+#Question 5: Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
+#It seems the maximum ABV among craft beers is 12.8% (Colorado) which is about 2.5x higher than Budweiser and a maxmimum IBU of 138 (Oregon) which is 11.5x higher than Budweiser.
+```{r max ABV, max IBU}
+#find the row(s) with the maximium number in the column of ABV
+Beer_Max_ABV = AllBeerDataFrame[which.max(AllBeerDataFrame$ABV),]
+Beer_Max_ABV[,c(10,12)]
+
+#Finds the row(s) with the maximum number in the column of IBU
+Beer_Max_IBU = AllBeerDataFrame[which.max(AllBeerDataFrame$IBU),]
+Beer_Max_IBU[,c(10:11)]
+
+```
+
+#Question 6: Comment on the summary statistics and distribution of the ABV variable
+
+#We can see that the distribution is slightly right skewed, but the median and mean of the ABV is between 5 and 6%. We know that Budweiser is around 5 perent which is lower than the mean and median. It precisely falls within the 1st quantile range of ABV percentages. We know that Bud light falls with 4.2 percent falls outside the 1st quantile range. 
+```{r summary}
+# summary statistics of ABV and the distribution graph of the ABV
+summary(AllBeerDataFrame$ABV)
+
+PlotSummary = AllBeerDataFrame %>% ggplot() + geom_histogram(aes(x=ABV*100),bins = 80) + ggtitle("Distribution of ABV") + xlab("Percent ABV")
+
+ggplotly(PlotSummary) #Makes a interactive Distribution Plot of ABV
+```
+
+#Question 7: Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatterplot. Expalin
+
+#We that there is a positive relationship between ABV and IBU from the scatterplot we can see the higher IBU related to higher ABV percentage in the beer and lower IBU has lower ABV. We see that most ABV that falls around 5% similar to Budweiser their IBU is lower than 50 percent. 
+```{r relationship between IBU and ABV}
+#Creates a scatterplot of the ABV and IBU to determine the relationship between the two. 
+Scatter_ABV_IBU = AllBeerDataFrame %>% ggplot(aes(x = IBU, y = ABV*100)) + geom_point(na.rm = TRUE) + geom_smooth(method = lm, se = FALSE, color = "green", linetpye = "dashed", na.rm = TRUE) + ggtitle("ABV vs IBU") + ylab("ABV")
+Scatter_ABV_IBU
+
+
+#Also a simple Linear regression model summary statistics is shown to know more information on the relationship between the two variables (IBU and ABV)
+fit = lm(AllBeerDataFrame$ABV~AllBeerDataFrame$IBU, data = AllBeerDataFrame)
+summary(fit)
+```
+
+
+#Question 8: Budweiser would also like to investigate the difference with respect to IBU and ABV between IPA's (India Pale Ales) and other types of Ale
+
+#We see a difference with our KNN classification, with k = 5 that our model seems to predict with a 90% accuracy and a sensitivity of 93% and specificity of 85%.
+#We also see with K = 10 our accuracy seem to fall a bit with 87.9% and our sensitivity is 91% and specificity is 82%. 
+```{r Investigate differences in Ale}
+#Use to classifiy the differences in Ale and Non Ale we will use KNN classification for K - Nearest Neighbors
+#Create a data object with only the Words "IPA" in their Beer_Style Name
+IPA = AllBeerDataFrame[grep("IPA",AllBeerDataFrame$Beer_Style),]
+IPA = IPA[!grepl("Ale",IPA$Beer_Style),]
+
+#creates a data object with only words with "Ale" in their Beer_Style Name
+Ale = AllBeerDataFrame[grep("Ale",AllBeerDataFrame$Beer_Style),]
+Ale = Ale[!grepl("IPA",Ale$Beer_Style),]
+
+#In order to use KNN we will train the model by creating a two separate data sets with, one for testing, and one for training
+Test_Ale = Ale %>% select(IBU,ABV)
+Test_Ale$flag = "ALE"               #Testing to make sure the Beer_styles only has Ale in their name
+
+Test_IPA = IPA %>% select(IBU,ABV)
+Test_IPA$flag = "IPA"                      #Testing to make sure the Beer_Styles only has IPA in their name
+
+#Combine the two test sets here
+Test_KNN = rbind(Test_Ale,Test_IPA)
+Test_KNN$flag = as.factor(Test_KNN$flag)#Make the flag column a factor for KNN testing
+Test_KNN[483,2] = 31
+
+#Now we will divide for a Test set and a training set here:
+set.seed(123)
+trainIndex = sample(seq(1:1521),1050)  #We have 1521 rows in our data set here, so we decided to do a 70% of the rows for training and 30% of the rows for testing. 
+trainBeers = Test_KNN[trainIndex,]
+TestBeers = Test_KNN[-trainIndex,]
+
+#Using our Classification Method with K = 5
+classify = knn3Train(trainBeers[c(2,3)],TestBeers[c(2,3)],trainBeers$flag, prob = TRUE, k = 5)
+
+#Create a confusion matrix with K = 5
+confuse = confusionMatrix(table(TestBeers$flag,classify))
+
+
+#Using our classification Method with K = 10
+classify = knn3Train(trainBeers[c(2,3)],TestBeers[c(2,3)],trainBeers$flag, prob = TRUE, k = 10)
+
+#create a confusion matrix with k = 10
+confuse = confusionMatrix(table(TestBeers$flag,classify))
+```
+
+
+#Question 9: Additional Exploration with the Data
+#We examine the ABV and IBU for states that has 20 or more Ounces in their Beer they sell. We see from visualization that the ABV tends to be much higher since more Ounces are sold in the container. Maybe it is possible Budweiser can see more revenue growth in increasing their ounces in per which thus increasing their ABV..
+
+#Recently Budweiser has been accused of watering down their beer due to shortages in alchol that they can provide. It is possible Budweiser could increase the Ounces and IBU in their alcohol to keep the level of 5% ABV in their beverage. As we can see with other beers that their ABV increases with the IBU. 
+```{r exploring}
+#Create a data set for ABV and IBU above 20 Ounces
+ABV_IBU_Oun = AllBeerDataFrame[AllBeerDataFrame$Ounces > 20,]
+#Make State as a factor to split the data on
+ABV_IBU_Oun$State = factor(ABV_IBU_Oun$State)
+
+#Create Various Plots (Bar Chart, Scatterplot, and Boxplot)
+g1 = ggplot(ABV_IBU_Oun, aes(x=ABV,y = Ounces, color = State)) + geom_point(size=5) + theme(legend.position = "none") + labs(title = "ABV vs Ounces", subtitle = "Ounces of 20 or More", x = "ABV", y = "Ounces")
+g2 = ggplot(ABV_IBU_Oun, aes(x=State,y = ABV, fill = State)) + geom_bar(stat = "identity") + labs(title = "ABV per State with 20 Ounces or More", x = "State", y = "ABV")
+g3 = ggplot(ABV_IBU_Oun,aes(x=State,y=Ounces, fill = Ounces)) + geom_boxplot() + theme(legend.position = "none") + labs(title="ABV per State with 20 Ounces or More",x = "State", y = "ABV")
+g4= ggplot(ABV_IBU_Oun, aes(x = IBU, y = ABV, color = State)) + geom_point(size = 5) + theme(legend.position = "none") + labs(title = "IBU vs ABV", subtitle = "With 20 or More Ounces", x = "IBU", y = "ABV")
+
+#Plots
+grid.arrange(g2,arrangeGrob(g1,g3,g4,nrow=3),nrow=1)
+```
+
+#Conclusion
+
+#We were able to learn new information about Beers and Breweries in the United States including Alcohol by Volume and International Bitterness Units. Finding the average and median IBU and ABV we were able to discover a relationship between the two and showing that their is indeed a positive relationship with an increase in ABV there is an increaes in IBU. We were able to find information on how beer is consume in each region of the US and why more breweries are located in the West Coast and their bitterness they prefer compared to the East Cost of the US having less breweries and their IBU is lower than the west. We looked at what popular beer Budweiser creates and found that their ABV is around the median of other beers other companies put on. Their IBU is about average compared to other companies that create beers as well.
+
+#If there is potential to tap into a new market by increasing ounces in their beer the ABV can surely be increased. If there is potential to move their product to the east cost, they could test the market on a new beer that has less IBU compared to what they sell now. 
+#Information is provided to allow executives to make an important business decision on what they would like to do or potentially do. 
+#

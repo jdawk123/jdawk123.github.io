@@ -1,0 +1,37 @@
+---
+title: "Things I've Done!"
+author: "Jeremy Dawkins"
+date: "11/12/2021"
+output: html_document
+---
+
+# This is a webpage displaying various projects and cool things I have done while studying at Southern Methodist University
+
+## {.tabset}
+
+### Learn About Me
+
+![](images/cute.jpeg)
+
+
+
+Name: Jeremy Dawkins
+
+Place: Located in Houston, Texas. 
+
+Interests: Outside of school, I love to play basketball with friends and video games. I am also a sneaker collector, so I collect a variety of different sneakers brands that I enjoy and love wearing out. 
+
+Work: Senior Associate, Market Operations at The Options Clearing Corporation
+
+Education:Undergraduate Studies: Texas A&M University, Graduate Studies: Southern Methodist University
+
+---------------------------------------------------------------------------
+
+
+
+
+
+The other tabs represent work/analyses that I have completed during my time at SMU. Please check them out! Thank You!
+
+
+
