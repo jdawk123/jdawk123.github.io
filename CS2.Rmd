@@ -1,0 +1,451 @@
+---
+title: "Case Study 02"
+author: "Jeremy Dawkins"
+date: "11/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+#We will load libraries that we will need in order to use certain functions.
+```{r load libraries, include=FALSE}
+library(dplyr)  #Allows us to pipe data frames to wrangle data we want to analyze
+library(ggplot2) #Allows us to connect data frames with graphs
+library(ggpubr) #Allows us to arrange any plots on 1 chart to display
+library(hrbrthemes) #Allows us to use the theme function when graphing
+library(GGally)    #Allows us to use our correlation matrix
+library(Hmisc)    #Allow us to find the correlation between variables with pvalues included
+library(olsrr)   #To do a variable/ parameter selection of the predictors
+library(caret)   #Use to for the K-fold cross validation of our model
+library(car)    #To look at the added variable plots of the regression model
+library(e1071) #use of the classification model knn and knn.cv
+library(class) #Use of the cross validations techniques
+library(Metrics) #Use for the Rmse() function
+library(leaps) #use for best predictors variables for salary
+```
+
+
+## Hello,
+
+## As part of DDSAnalytics that specializes in talent management solutions we were hired to look at employee data at a firm to determine factors in attrition at the firm. We will examine various aspects of this dataset using explanatory data set to discover what we can find that's backed up by data. 
+#We will conduct an analysis on various information and discover which factors into an employee attrition. 
+```{r bring in dataset, echo=FALSE}
+#Here I bring in the employee dataset and create a data frame 
+Dataset = read.csv("CaseStudy2-data.csv",header = TRUE, sep = ",")
+
+#Let's examine the first 5 rows and the last 5 rows
+head(Dataset,5)
+tail(Dataset,5)
+
+#Let's examine the structure of the data frame and see if there any missing employee information
+str(Dataset)
+summary(Dataset)
+
+##We see there are no missing information in the data frame, which is great now we can being our EDA
+```
+
+
+## As we do our EDA let's look first look at the departments
+#We will look at the summary to look at many people are in each department. 
+#We will go ahead and make factors to use later when trying to graphically represent this data, but also show observations on separate groups.
+```{r EDA, echo=FALSE}
+#Create factors for the different departments so that we could easily identify how many there are.
+Dataset$Department = factor(Dataset$Department)
+
+#Displays how many people are in each department at this particular company
+summary(Dataset$Department)
+
+#Create factors for Gender to distinguish how many there are
+Dataset$Gender = factor(Dataset$Gender)
+
+#Count how many people in each Job Role
+summary(Dataset$JobRole)
+
+#Create factors for Job Role, that we will use later to possibly narrow down which jobs roles are volatile
+Dataset$JobRole = factor(Dataset$JobRole)
+
+#Create factors for Marital Status, this could be potentially looked at with people with marriage assuming families
+Dataset$MaritalStatus = factor(Dataset$MaritalStatus)
+
+#Create factors for Education Field, examine where the majority people tend to have backgrounds in
+Dataset$EducationField = factor(Dataset$EducationField)
+
+#Create factors for Overtime, examine if a person is an exempt or non-exempt employee
+Dataset$OverTime = factor(Dataset$OverTime)
+
+#Create factors for Attrition, to compare current and non-current employees
+Dataset$Attrition = factor(Dataset$Attrition)
+```
+
+#We will examine the data by Departments to focus on any specific detailed information
+#We will look at the Sales department specifically here in this section
+## We can see here that Attrition did occur in the Sales Department, so we will look at their survey results.
+#We discover from the Relationship Plot with Attrition; we discover that people with the Manager Job Role on average did not have well relationships with their superiors. 
+
+#We also wanted to look at the people who currently still works at the firm and how their surveys looked. 
+#We discover on average their surveys whether it was relationship satisfaction, job involvement, or job satisfaction they had an overall wonderful experience. 
+
+#So, we would need to keep in the back of our mind, what would cause these employees to leave when the Sales Department as a group tends to have overall high surveys across all Job Levels and Job Roles they have within the department.
+#Could this be a money, distance from work, stock options, etc.? We will have to dig further, but for now we will look at this same survey for other departments.
+
+```{r EDA Sales Department, echo=FALSE}
+#Let's select only the rows that allows us to look into the Sales Department and if attrition occurred
+Dataset_Sales_Y = Dataset %>% filter(Department == "Sales" & Attrition == "Yes")
+
+#Let's look at an employee's response to a survey for job satisfaction and job involvement 
+#Nothing here as well, *1 = Not involved , 2 = Somewhat involved, 3 = Involved, 4 = Always Involved
+JobInvolvementPlot = Dataset_Sales_Y %>% ggplot(aes(fill = JobRole, y = JobInvolvement, x = JobLevel)) + geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Involvement per Job Role", subtitle = " (Higher Level Equates To More Duties Per Job Role")
+
+#Noting here that *1 = Not Happy, 2-3 = Moderately Happy , 4 = Happy for job satisfaction
+JobSatisfactionPlot = Dataset_Sales_Y %>% ggplot(aes(fill = JobRole, y = JobSatisfaction,x = JobLevel)) +geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Satisfaction per Job Role", subtitle = "Job Level (Higher Level Equates To More Duties Per Job Role")
+
+#Here we are looking at the Relationship Satisfaction with who an employee reports to, so their manager or executive. This is important when working at any company because this could lead to issues.
+#Here we assume the same ratings where, *1 = Not Happy, 2 = Moderately Happy, 3 = Happy, 4 = Enjoys the Relationship
+RelationshipPlot = Dataset_Sales_Y %>% ggplot(aes(x = RelationshipSatisfaction, group = JobRole, fill = JobRole)) + geom_density(adjust = 1.5) + theme_ipsum() + facet_wrap(~JobRole) + labs(title = "Relationship Satisfaction with Manager/Executive", subtitle = "Job Level (Higher Level Equates To More Duties Per Job Role")
+
+#Arrange all three graphs to look at them at the same time. 
+ggarrange(JobInvolvementPlot,JobSatisfactionPlot,RelationshipPlot, common.legend = TRUE, ncol = 2, nrow = 2)
+
+
+
+#Selecting only the rows that allows us to look into the Sales Department and no attrition occurred
+Dataset_Sales_N = Dataset %>% filter(Department == "Sales" & Attrition == "No")
+
+#Let's look at an employee's response to a survey for job satisfaction and job involvement 
+#Nothing here as well, *1 = Not involved , 2 = Somewhat involved, 3 = Involved, 4 = Always Involved
+JobInvolvementPlot2 = Dataset_Sales_N %>% ggplot(aes(fill = JobRole, y = JobInvolvement, x = JobLevel)) + geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Involvement per Job Role", subtitle = "Job Level (Higher Level Equates To More Responsibilites Per Job Role)")
+
+#Noting here that *1 = Not Happy, 2-3 = Moderately Happy , 4 = Happy for job satisfaction
+JobSatisfactionPlot2 = Dataset_Sales_N %>% ggplot(aes(fill = JobRole, y = JobSatisfaction,x = JobLevel)) +geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Satisfaction per Job Role", subtitle = "Job Level (Higher Level Equates To More Responsibilites Per Job Role)")
+
+#Here we are looking at the Relationship Satisfaction with who an employee reports to, so their manager or executive. This is important when working at any company because this could lead to issues.
+#Here we assume the same ratings where, *1 = Not Happy, 2 = Moderately Happy, 3 = Happy, 4 = Enjoys the Relationship
+RelationshipPlot2 = Dataset_Sales_N %>% ggplot(aes(y = RelationshipSatisfaction, x = JobLevel, fill = JobRole)) + geom_violin() + labs(title = "Relationship Satisfaction with Manager/Executive", subtitle = "Job Level (Higher Level Equate To More Responsibilites Per Job Role)")
+
+#Arrange all three graphs to look at them at the same time. 
+ggarrange(JobInvolvementPlot2,JobSatisfactionPlot2,RelationshipPlot2, common.legend = TRUE, ncol = 2, nrow = 2)
+```
+
+
+#In this section we will examine the Research & Development Department. We would want to look at people who did leave the company if any, and the people who are currently with them.
+#The Job Involvement for former employees on average their surveys seem to be between 2-3 (Moderately Happy) on average regardless of the job levels for each job role. This could be a potential reason factor in employees leaving, we would have to examine further on Job Involvement.
+#We also look at the Job Satisfaction where the job levels 2, 3 and 5 seems to have low survey scores. Job Satisfaction overall could lead to a factor on why people would leave because they would feel unhappy with their responsibilities. 
+#The relationship Satisfaction between employee and manager or executive seems to over lab across all job levels with the average leaning below 3 (Moderately happy). We see that Research Scientist specifically is overall job level 1 seems to have scored two.
+```{r EDA R&D Department, echo = FALSE}
+#We will filter by department (R&D), so we can only look at R&D and former employees
+Dataset_RD_Y = Dataset %>% filter(Department == "Research & Development" & Attrition == "Yes")
+
+#Let's look at an employee's response to a survey for job satisfaction and job involvement 
+#Nothing here as well, *1 = Not involved , 2 = Somewhat involved, 3 = Involved, 4 = Always Involve
+JobInvolvementPlot3 = Dataset_RD_Y %>% ggplot(aes(fill = JobRole, y = JobInvolvement, x = JobLevel)) + geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Involvement per Job Role", subtitle = "Job Level (Higher Level Equates To More Responsibilites Per Job Role")
+
+#Noting here that *1 = Not Happy, 2-3 = Moderately Happy , 4 = Happy for job satisfaction
+JobSatisfactionPlot3 = Dataset_RD_Y %>% ggplot(aes(fill = JobRole, y = JobSatisfaction, x = JobLevel)) + geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Satisfaction per Job Role", subtitle = "Job Level (Higher Level Equates To More Responsibilites Per Job Role)")
+
+
+#Here we are looking at the Relationship Satisfaction with who an employee reports to, so their manager or executive. This is important when working at any company because this could lead to issues.
+#Here we assume the same ratings where, *1 = Not Happy, 2 = Moderately Happy, 3 = Happy, 4 = Enjoys the Relationship
+RelationshipPlot3 = Dataset_RD_Y %>% ggplot(aes(y = RelationshipSatisfaction, x = JobLevel, fill = JobRole)) + geom_violin() + labs(title = "Relationship Satisfaction with Manager/Executive", subtitle = "Job Level (Higher Level Equate To More Responsibilites Per Job Role)")
+
+
+#Arrange all three graphs to look at them at the same time. 
+ggarrange(JobInvolvementPlot3,JobSatisfactionPlot3,RelationshipPlot3, common.legend = TRUE, ncol = 2, nrow = 2)
+
+
+#We will filter by deparment (R&D) and current employees
+Dataset_RD_N = Dataset %>% filter(Department == "Research & Development" & Attrition == "No")
+
+#Let's look at an employee's response to a survey for job satisfaction and job involvement 
+#Nothing here as well, *1 = Not involved , 2 = Somewhat involved, 3 = Involved, 4 = Always Involve
+JobInvolvementPlot4 = Dataset_RD_N %>% ggplot(aes(fill = JobRole, y = JobInvolvement, x = JobLevel)) + geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Involvement per Job Role", subtitle = "Job Level (Higher Level Equates To More Responsibilites Per Job Role")
+
+
+#Noting here that *1 = Not Happy, 2-3 = Moderately Happy , 4 = Happy for job satisfaction
+JobSatisfactionPlot4 = Dataset_RD_N %>% ggplot(aes(fill = JobRole, y = JobSatisfaction, x = JobLevel)) + geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Satisfaction per Job Role", subtitle = "Job Level (Higher Level Equates To More Responsibilites Per Job Role)")
+
+
+#Here we are looking at the Relationship Satisfaction with who an employee reports to, so their manager or executive. This is important when working at any company because this could lead to issues.
+#Here we assume the same ratings where, *1 = Not Happy, 2 = Moderately Happy, 3 = Happy, 4 = Enjoys the Relationship
+RelationshipPlot4 = Dataset_RD_N %>% ggplot(aes(y = RelationshipSatisfaction, x = JobLevel, fill = JobRole)) + geom_violin() + labs(title = "Relationship Satisfaction with Manager/Executive", subtitle = "Job Level (Higher Level Equate To More Responsibilites Per Job Role)")
+
+
+#Arrange all three graphs to look at them at the same time. 
+ggarrange(JobInvolvementPlot4,JobSatisfactionPlot4,RelationshipPlot4, common.legend = TRUE, ncol = 2, nrow = 2)
+
+```
+
+
+#In this section we will examine the HR Department. We would want to look at similar aspect compared to the other two departments we examined. 
+#In this section we see there are only two job roles in this department, one labeled Human Resources and the other labeled Manager
+#We also see the people who are now former employees are only Human Resources Job Roles. 
+#Their overall Relationship Satisfaction between employee and managers on average seems to be around the grade 3 (Happy). We will need to examine further what other factors caused these employees to leave.
+```{r EDA HR Department, echo = FALSE}
+#We will filter by department (HR), so we can only want to look at HR former employees
+Dataset_HR_Y = Dataset %>% filter(Department == "Human Resources" & Attrition == "Yes")
+
+#Let's look at an employee's response to a survey for job satisfaction and job involvement 
+#Nothing here as well, *1 = Not involved , 2 = Somewhat involved, 3 = Involved, 4 = Always Involve
+JobInvolvementPlot5 = Dataset_HR_Y %>% ggplot(aes(fill = JobRole, y = JobInvolvement, x = JobLevel)) + geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Satisfaction per Job Role", subtitle = "Job Level (Higher Level Equates To More Responsibilites Per Job Role")
+
+
+#Noting here that *1 = Not Happy, 2-3 = Moderately Happy , 4 = Happy for job satisfaction
+JobSatisfactionPlot5 = Dataset_HR_Y %>% ggplot(aes(fill = JobRole, y = JobSatisfaction, x = JobLevel)) + geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Satisfaction per Job Role", subtitle = "Job Level (Higher Level Equates To More Responsibilites Per Job Role)")
+
+
+#Here we are looking at the Relationship Satisfaction with who an employee reports to, so their manager or executive. This is important when working at any company because this could lead to issues.
+#Here we assume the same ratings where, *1 = Not Happy, 2 = Moderately Happy, 3 = Happy, 4 = Enjoys the Relationship
+RelationshipPlot5 = Dataset_HR_Y %>% ggplot(aes(y = RelationshipSatisfaction, x = JobLevel, fill = JobRole)) + geom_violin() + labs(title = "Relationship Satisfaction with Manager/Executive", subtitle = "Job Level (Higher Level Equate To More Responsibilites Per Job Role)")
+
+
+#Arrange all three graphs to look at them at the same time. 
+ggarrange(JobInvolvementPlot5,JobSatisfactionPlot5,RelationshipPlot5, common.legend = TRUE, ncol = 2, nrow = 2)
+
+
+
+#We will filter by department (HR), so we can only look at HR current employees
+Dataset_HR_N = Dataset %>% filter(Department == "Human Resources" & Attrition == "No")
+
+#Let's look at an employee's response to a survey for job satisfaction and job involvement 
+#Nothing here as well, *1 = Not involved , 2 = Somewhat involved, 3 = Involved, 4 = Always Involve
+JobInvolvementPlot6 = Dataset_HR_N %>% ggplot(aes(fill = JobRole, y = JobInvolvement, x = JobLevel)) + geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Satisfaction per Job Role", subtitle = "Job Level (Higher Level Equates To More Responsibilites Per Job Role")
+
+
+#Noting here that *1 = Not Happy, 2-3 = Moderately Happy , 4 = Happy for job satisfaction
+JobSatisfactionPlot6 = Dataset_HR_N %>% ggplot(aes(fill = JobRole, y = JobSatisfaction, x = JobLevel)) + geom_bar(position = "dodge", stat = "identity") + labs(title = "Job Satisfaction per Job Role", subtitle = "Job Level (Higher Level Equates To More Responsibilites Per Job Role)")
+
+
+#Here we are looking at the Relationship Satisfaction with who an employee reports to, so their manager or executive. This is important when working at any company because this could lead to issues.
+#Here we assume the same ratings where, *1 = Not Happy, 2 = Moderately Happy, 3 = Happy, 4 = Enjoys the Relationship
+RelationshipPlot6 = Dataset_HR_N %>% ggplot(aes(y = RelationshipSatisfaction, x = JobLevel, fill = JobRole)) + geom_violin() + labs(title = "Relationship Satisfaction with Manager/Executive", subtitle = "Job Level (Higher Level Equate To More Responsibilites Per Job Role)")
+
+
+#Arrange all three graphs to look at them at the same time. 
+ggarrange(JobInvolvementPlot6,JobSatisfactionPlot6,RelationshipPlot6, common.legend = TRUE, ncol = 2, nrow = 2)
+```
+
+
+#After discovering interesting facts about variables that could be factors in attrition. Now we will look at majority of the variables here to see which variables are correlated between each other. If these variables are correlated between each other then we would need to take them out and not use them in our potential model. This is since multiple factors trying to explain our model in the next section will not achieve anything and could be overfitting the model. We were able to find a model that best fit and look at the evidence to back up our model. We will also conduct a classification model with Naive Bayes to see sensitivity and specificity. 
+```{r Correlation Factors, echo = FALSE}
+#We will take subset the initial Dataset we brought
+Dataset_Y = Dataset 
+
+#We will not select numerical variables from this data frame to use in a correlation matrix. 
+#Let's look at the column names to use in our correlation matrix
+colnames(Dataset_Y)
+
+#We will take our characters in the Business Travel category, so we can make these numeric to include it in our correlation matrix
+Dataset_Y2 = gsub("_","",Dataset_Y$BusinessTravel)
+Dataset_Y$BusinessTravel = gsub("-","",Dataset_Y2)
+
+#Make Business Travel and Attrition a factor here. 
+Dataset_Y$BusinessTravel = factor(Dataset_Y$BusinessTravel)
+Dataset_Y$Attrition = factor(Dataset_Y$Attrition)
+
+
+#We will convert the Marital Status of an employee to a numeric value, where *3 = Single, 2 = Married, 1 = Divorced
+#We will convert the Gender Status of an employee to a numeric value, where *1 = Female, 2 = Male
+#Business Travel is converted to an numeric, where *1 = No Travel , 2 = Travel Frequently , 3 = Travel Rarely
+#Department is also converted to an numeric, where *1 = Human Resources, 2 = Research & Development, 3 = Sales
+#Over Time is converted to an numeric, where *1 = No , 2 = Yes
+Dataset_Y = Dataset_Y %>% mutate(MaritalStatus2 = as.numeric(MaritalStatus), Gender2 = as.numeric(Gender), BusinessTravel2 = as.numeric(BusinessTravel), Department2 = as.numeric(Department), OverTIme2 = as.numeric(OverTime), Attrition2 = as.numeric(Attrition))
+
+
+#Let's select columns that we want to add to our correlation matrix, and leave out the non numeric variables
+Dataset_Y_Select = Dataset_Y %>% select(Attrition2,Age,DailyRate,DistanceFromHome,Education,EnvironmentSatisfaction,HourlyRate,JobInvolvement,JobLevel,JobSatisfaction,MonthlyIncome,MonthlyRate,PercentSalaryHike,PerformanceRating,RelationshipSatisfaction,StockOptionLevel,TotalWorkingYears,TrainingTimesLastYear,WorkLifeBalance,YearsAtCompany,YearsInCurrentRole,YearsSinceLastPromotion,YearsWithCurrManager,MaritalStatus2,Gender2,BusinessTravel2,Department2,OverTIme2,Department)
+
+#Let's check to make sure we have all the numeric variables we want to consider as factors for Attrition
+#Get the summary statistics as well
+str(Dataset_Y_Select)
+summary(Dataset_Y_Select)
+
+
+#Let's create a visualization of correlation with all the variable we believe are factors in attrition
+Corr_Matrix = ggcorr(Dataset_Y_Select[,c(1:28)], method = c("everything","pearson")) 
+
+
+#We will create a model that best represents our scatter plot matrix, which in this case would be all the predictors in the Multiple Linear Regression Model
+fit = lm(Attrition2~.-Department, data = Dataset_Y_Select)
+summary(fit)
+
+#we will now look at three different selection predictor process, we will compare each one to choose the best model, in which we will later use for model testing.
+
+#First selection method is forward selection, we will use a pvalue of 0.05 at the cut off point. 
+FS = ols_step_forward_p(fit,penter = 0.05,details = TRUE)
+
+
+#Our second method is backward selection, which we will use the same pvalue of 0.05
+BS = ols_step_backward_p(fit, prem = 0.05,details = TRUE)
+
+
+#Our last method is the stepwise selection method with pvalues of 0.05
+SW = ols_step_both_p(fit,pent = 0.05,prem = 0.05,details = TRUE)
+
+
+#Now we will compare to select which model is best using different Selection methods
+#We will look at the R square, Adjusted R2, Overall F Test, RSME, MSE,MAE,AIC, SBC
+FS$rsquare[11]
+BS$rsquare[14]
+SW$rsquare[11]
+
+FS$sbc[11]
+BS$sbc[14]
+SW$sbc[11]
+
+FS$adjr[11]
+BS$adjr[14]
+SW$adjr[11]
+
+FS$rmse[11]
+BS$rmse[14]
+SW$rmse[11]
+
+FS$aic[11]
+BS$aic[14]
+SW$aic[11]
+
+FS$mallows_cp[11]
+BS$mallows_cp[14]
+SW$mallows_cp[11]
+
+#After comparing the model it appears the backward selection process will be used based on the smaller errors. 
+#We will conduct the fit of the model and check assumptions for MLR
+fit2 = lm(Attrition2~DistanceFromHome+EnvironmentSatisfaction+JobInvolvement+JobLevel+JobSatisfaction+TrainingTimesLastYear+WorkLifeBalance+YearsInCurrentRole+YearsSinceLastPromotion+MaritalStatus2+Department2+OverTIme2, data = Dataset_Y_Select)
+summary(fit2)
+
+#We will evaluate residual plots and assumptions to of this model
+#We will assume the assumptions for regression is met. 
+par(mfrow=c(1,2))
+hist(fit2$residuals, col = "blue", main = "Histogram of Residuals", xlab = "Residuals")
+plot(fit2$fitted.values, fit2$residuals, main = "Plot of Residuals vs Fitted Values", xlab = "Fitted Values", ylab = "Residuals")
+
+#We will conduct a K-fold Cross Validation to evaluate the model performance of our data. 
+#We will split the data into training and a test set. We will create a training set containing 75 percent of the data and a test set containing the other 25 percent. 
+set.seed(123)
+training_obs = sample(seq(1,dim(Dataset_Y_Select)[1]),round(.75 * dim(Dataset_Y_Select)[1]), replace = FALSE)
+Train_Dataset = Dataset_Y_Select[training_obs,]
+
+Test_Dataset = Dataset_Y_Select[-training_obs,]
+
+
+#Here we are using our model that we made to use on the training data set. We will also look at the summary details of this model. 
+model1_fit = lm(Attrition2~DistanceFromHome+EnvironmentSatisfaction+JobInvolvement+JobLevel+JobSatisfaction+TrainingTimesLastYear+WorkLifeBalance+YearsInCurrentRole+YearsSinceLastPromotion+MaritalStatus2+Department2+OverTIme2, data = Train_Dataset)
+summary(model1_fit)
+
+#We will use the prediction function using our model and test on the testing dataset
+model1_pred = predict(model1_fit,newdata = Test_Dataset)
+
+#We will create a data frame and that will house the Rsquared, RSME, MAE
+data.frame(Rsq = R2(model1_pred, Test_Dataset$Attrition2), RSME = RMSE(model1_pred, Test_Dataset$Attrition2), MAE = MAE(model1_pred, Test_Dataset$Attrition2))
+
+#Display the prediction error rate, which we would want small as possible
+RMSE(model1_pred, Test_Dataset$Attrition2) / mean(Test_Dataset$Attrition2)
+
+
+#We will read in the initial set again
+Initial_Set = read.csv("CaseStudy2-data.csv",header = TRUE, sep = ",")
+
+#Create a new data frame object using the initial set
+DF = Initial_Set
+DF = Initial_Set %>% select(Age,BusinessTravel,DailyRate,Department,DistanceFromHome,Education,EducationField,EnvironmentSatisfaction,Gender,HourlyRate,JobInvolvement,JobLevel,JobRole,JobSatisfaction,MaritalStatus,MonthlyIncome,MonthlyRate,NumCompaniesWorked,Over18,OverTime,PercentSalaryHike,PerformanceRating,RelationshipSatisfaction,TotalWorkingYears,TrainingTimesLastYear,WorkLifeBalance,YearsAtCompany,YearsInCurrentRole,YearsSinceLastPromotion,YearsWithCurrManager,Attrition)
+
+
+#We will not use Naive Bayes to conduct a classification algorithm to see if a employee is attrited or not based on multiple predictors. 
+#We would want to split our data into a training and a test set to train the data then test our results. 
+#We will try to make the split as random as possible. 
+set.seed(1234)
+Index = sample(seq(1:dim(DF)[1]),round(.75 * dim(DF)[1]), replace = FALSE)
+Class_SetTrain = DF[Index,]
+Class_SetTest = DF[-Index,]
+
+#Here we create our naive bayes model with our training set using the predictors we determined and see if it can correctly match what we have for attrition
+#Once that is done we will create a table and a confusion matrix to see how accurate how classification is, as well as the sensitivity and specificity
+model = naiveBayes(Class_SetTrain[,c(1:30)], Class_SetTrain$Attrition)
+help = table(predict(model,Class_SetTest[,c(1:30)]), Class_SetTest$Attrition)
+confusionMatrix((help))
+
+
+#We will subset our initial data set from the csv file we pulled, and only focus on specific factors for our regression model 
+Dataset_Sal = subset(Initial_Set, select = c(2,5,7:8,11:12,14:16,18,20:22,25:27,29:36)) 
+Dataset_Sal = Dataset_Sal %>% mutate(Salary = MonthlyIncome * 12) #Find the yearly Salary for all employees 
+
+linear_model = lm(Salary~.-MonthlyIncome,data = Dataset_Sal) #use all factors as explanatory variables for the regression model
+
+best_subset = regsubsets(Salary~.-MonthlyIncome, data = Dataset_Sal, nbest = 1, nvmax = NULL, force.in = NULL, force.out = NULL, method = "exhaustive") #uses subset to figure out the best explanatory variables to use in the model
+
+summary_best_subset <- summary(best_subset) #Finds the summary of the subset of by marking which variables to use with "True" or "False"
+
+which.max(summary_best_subset$adjr2) #finds the highest adjusted r square
+summary_best_subset$which[8,] #finds the predictors with the 8 
+
+
+#Cross Validation of the Salary Model we made
+#We will use our linear model and set a partition of 50% for the train and 50% of the test data. 
+set.seed(1234)
+training.samples <- Dataset_Sal$Salary %>% createDataPartition(p = 0.5, list = FALSE)
+train.data  <- Dataset_Sal[training.samples, ]
+test.data <- Dataset_Sal[-training.samples, ]
+# We build the linear model that best described Salary
+model <- lm(Salary~DistanceFromHome+EnvironmentSatisfaction+JobInvolvement+JobLevel+PercentSalaryHike+PerformanceRating+TotalWorkingYears+YearsWithCurrManager, data = Dataset_Sal)
+# Make predictions and compute the R2, RMSE and MAE and displays it as a data frame
+predictions <- model %>% predict(test.data)
+data.frame( R2 = R2(predictions,test.data$Salary),
+            RMSE = RMSE(predictions, test.data$Salary),
+            MAE = MAE(predictions, test.data$Salary))
+
+#Calculates the prediction error rate
+RMSE(predictions, test.data$Salary)/mean(test.data$Salary)
+
+
+#Another Cross- Validation called "Leave one out cross validation" 
+#We will create a train control with the specific cross validation method
+train.control <- trainControl(method = "LOOCV")
+#Train the model that we have selected
+model2 <- train(Salary ~DistanceFromHome+EnvironmentSatisfaction+JobInvolvement+JobLevel+PercentSalaryHike+PerformanceRating+TotalWorkingYears+YearsWithCurrManager, data = Dataset_Sal, method = "lm",
+               trControl = train.control)
+#Summarize the results of the cross validation
+print(model2)
+
+```
+
+
+#We will not take the factors that we believe are big impacts to attrition and create different models with them
+#We will show visuals of the multiple linear regression for Attrition and Salary
+```{r Modelings with Factors and plots, echo = FALSE}
+#We will look at the Individual plots of the explanatory variable and the response for our regression model. 
+avPlots(fit2)
+
+#We will look at the individual plots of the explanatory variables and the response for our regression model with Salary. 
+avPlots(linear_model)
+
+#Here is a density chart of the various Salarys within each Job Level
+ggplot(Dataset_Sal, aes(x=JobLevel, y=Salary) ) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", colour="white") + labs(title = "Salary vs Job Level Density Chart")
+
+#Here is a chart looking at performance rating and salary
+ggplot(Dataset_Sal, aes(x=JobInvolvement, y=Salary) ) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", colour="green") + labs(title = "Salary vs Job Involvement Density Chart")
+
+
+```
+
+
+#We will demonstrate some graphs of our models that we created. We display any visuals that the employer can see on what are some low factors they can take into account. 
+```{r Summary (with Graphs), echo = FALSE}
+#Here are a few charts that model some areas the employer can try to improve at. 
+proportion = table(Dataset_Y$Attrition) / nrow(Dataset_Y)
+#Here we display a boxplot of Job Satisfaction and Attrition
+boxplot(Dataset_Y$JobSatisfaction ~ Dataset_Y$Attrition ,width = proportion,
+    ylab="Job Satisfaction" , xlab="- Attrition -", col = c("orange","seagreen"), main = "Boxplot of Job Satisfaction of Attrition")
+
+
+
+#We will write our prediction model to a csv and push it to github. 
+write.csv(model1_pred,file = "prediction.attrition.csv")
+write.csv(predictions, file = "prediction.salary.csv")
+```
+
+
+#In conclusion, we discovered that the main factors that leads to attrition are Job Satisfaction, Job Level, Job Involvement, OverTime, Martial Status, and Years in Current Role. These appear to have great significance in whether a employee would stay with the company or leave. Perhaps the company can focus on these areas of weakness and discover what is cause low survey scores that is causing attrition. There could be number of reasons, it will be difficult to narrow it down to only one. The former employees could be poor performers in the workplace which could have an impact on productivity. Any company would not want high attrition rate due to it's cost like hiring replacements and training them. 
